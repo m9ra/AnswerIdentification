@@ -29,6 +29,7 @@ class LinkedAnswerHints(object):
         self.lines = []
         self.labels = []
 
+        skipped_count = 0
         vocabulary_lines = len(lines) - non_vocabulary_ratio * len(lines)
 
         for line in lines:
@@ -88,6 +89,10 @@ class LinkedAnswerHints(object):
                 labels.append(label_vector)
                 self.labels.append(label_index)
                 self.lines.append(line_words)
+            else:
+                skipped_count += 1
+
+        self.skipped_count = skipped_count
 
     def generate_data(self):
         return pad_sequences(self._features), pad_sequences(self._masks), pad_sequences(self._labels)

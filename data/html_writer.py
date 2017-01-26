@@ -8,13 +8,21 @@ class HtmlWriter(object):
         <style>
             .result_box{
                 margin: 30px 5px;
+                padding-left:10px;
+            }
+
+            .error{
+                border-left: 5px solid red;
             }
         </style>
     </head>
 <body>""")
 
-    def write_result_box(self, items):
-        self.write("<div class='result_box'>")
+    def write_result_box(self, items, extra_classes=''):
+        if len(extra_classes) > 0:
+            extra_classes = " " + extra_classes
+
+        self.write("<div class='result_box" + extra_classes + "'>")
         for item in items:
             if isinstance(item, str):
                 self.write(item + " ")

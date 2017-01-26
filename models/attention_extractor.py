@@ -13,6 +13,7 @@ from data.html_writer import HtmlWriter
 class AttentionExtractor(object):
     def train(self, train_data, validation_data):
         batch_size = 1
+        epoch_count = 50
 
         self._entity_indices = []
         self.register_entity_indices(train_data)
@@ -22,7 +23,7 @@ class AttentionExtractor(object):
         x_train, attention_mask_train, y_train = train_data.generate_data()
         x_valid, attention_mask_valid, y_valid = validation_data.generate_data()
 
-        model.fit([x_train, attention_mask_train], y_train, batch_size=batch_size, nb_epoch=50,
+        model.fit([x_train, attention_mask_train], y_train, batch_size=batch_size, nb_epoch=epoch_count,
                   validation_data=([x_valid, attention_mask_valid], y_valid))
 
         self._model = model
@@ -31,9 +32,12 @@ class AttentionExtractor(object):
 
         data_samples = data.generate_separated_data()
 
+        correct_count = 0
+        processed_count = 0
         writer = HtmlWriter(result_file)
         for i, (x, mask, y) in enumerate(data_samples):
             prediction = self._model.predict([x, mask])[0]
+            max_prob_index = np.argmax(prediction)
             print x
             print prediction
             words = data.lines[i]
@@ -63,8 +67,27 @@ class AttentionExtractor(object):
 
                 result_info.append(info)
 
-            writer.write_result_box(result_info)
+            if not max_prob_index == label:
+                writer.write_result_box(result_info, "error")
+            else:
+                writer.write_result_box(result_info)
+                correct_count += 1
 
+            processed_count += 1
+
+        total_count = processed_count + data.skipped_count
+        linked_count = processed_count
+
+        total_accuracy = 100.0 * correct_count / total_count
+        extraction_accuracy = 100.0 * correct_count / linked_count
+        linking_accuracy = 100.0 * linked_count / total_count
+        writer.write("<div class='info_box'>")
+        writer.write("<h3>Results summary</h3><br>")
+        writer.write("<b>Total accuracy: </b>" + "{0:.2f}%".format(total_accuracy))
+        writer.write("<br><b>Linking accuracy: </b>" + "{0:.2f}%".format(linking_accuracy))
+        writer.write("<br><b>Extraction accuracy: </b>" + "{0:.2f}%".format(extraction_accuracy))
+
+        writer.write("</div>")
         writer.close()
 
     def train_test(self):
