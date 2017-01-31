@@ -5,7 +5,7 @@ from keras.preprocessing.sequence import pad_sequences
 
 
 class LinkedAnswerHints(object):
-    def __init__(self, source_file, vocabulary_parent=None, use_entity_ordering=False, non_vocabulary_ratio=0.1):
+    def __init__(self, source_file, vocabulary_parent=None, use_entity_ordering=True, non_vocabulary_ratio=0.0):
         self._use_entity_ordering = use_entity_ordering
 
         self.entity_indices = []
