@@ -1,5 +1,6 @@
 import numpy as np
 import tensorflow as tf
+from keras.callbacks import ModelCheckpoint
 from keras.engine import Input
 from keras.engine import Layer
 from keras.layers import LSTM, Dense, Bidirectional, GRU, Embedding, BatchNormalization, Lambda, initializations
@@ -15,17 +16,15 @@ class AttentionExtractor(object):
         batch_size = 1
         epoch_count = 50
 
-        self._entity_indices = []
-        self.register_entity_indices(train_data)
-        self.register_entity_indices(validation_data)
+        model = self.create_model(train_data)
+        x_train, features_train, attention_mask_train, y_train = train_data.generate_data()
+        x_valid, features_valid, attention_mask_valid, y_valid = validation_data.generate_data()
 
-        model = self.create_model()
-        x_train, attention_mask_train, y_train = train_data.generate_data()
-        x_valid, attention_mask_valid, y_valid = validation_data.generate_data()
+        checkpointer = ModelCheckpoint(filepath="/tmp/weights.hdf5", verbose=1, save_best_only=True, monitor="val_loss")
+        model.fit([x_train, features_train, attention_mask_train], y_train, batch_size=batch_size, nb_epoch=epoch_count,
+                  validation_data=([x_valid, features_valid, attention_mask_valid], y_valid), callbacks=[checkpointer])
 
-        model.fit([x_train, attention_mask_train], y_train, batch_size=batch_size, nb_epoch=epoch_count,
-                  validation_data=([x_valid, attention_mask_valid], y_valid))
-
+        model.load_weights(checkpointer.filepath)
         self._model = model
 
     def print_report(self, data, result_file):
@@ -35,8 +34,8 @@ class AttentionExtractor(object):
         correct_count = 0
         processed_count = 0
         writer = HtmlWriter(result_file)
-        for i, (x, mask, y) in enumerate(data_samples):
-            prediction = self._model.predict([x, mask])[0]
+        for i, (x, features, mask, y) in enumerate(data_samples):
+            prediction = self._model.predict([x, features, mask])[0]
             max_prob_index = np.argmax(prediction)
             print x
             print prediction
@@ -97,10 +96,6 @@ class AttentionExtractor(object):
 
         model.fit(x_train, y_train, batch_size=batch_size, nb_epoch=50)
 
-    def register_entity_indices(self, data):
-        for index in data.entity_indices:
-            self._entity_indices.append(index)
-
     def create_embeddings(self, embedding_dim):
         index_count = 2000
 
@@ -116,28 +111,30 @@ class AttentionExtractor(object):
                 embedding_matrix[i][0] = 1.0
             else:
                 embedding_matrix[i][0] = 0.0
-        """
-        layer = Embedding(index_count, embedding_dim, weights=[embedding_matrix])
+        # """
+        # layer = Embedding(index_count, embedding_dim, weights=[embedding_matrix])
+        layer = Embedding(index_count, embedding_dim)
         return layer
 
-    def create_model(self):
-        embedding_dim = 32
-        rnn_dim = 32
+    def create_model(self, train_data):
+        embedding_dim = 4
+        rnn_dim = 16
 
         attention_mask = Input(shape=(None,), dtype='float32', name='attention_mask')
+        word_features = Input(shape=(None, train_data.feature_dim), dtype='float32', name='word_features')
 
         model = Sequential()
 
         model.add(self.create_embeddings(embedding_dim))
+        model.add(FeatureConcatenation(word_features))
         model.add(Bidirectional(LSTM(rnn_dim, return_sequences=True), merge_mode='concat', name='context_bidir_rnn',
-                                input_shape=(None, embedding_dim)))
-        model.add(Bidirectional(LSTM(rnn_dim, return_sequences=True), merge_mode='concat', name='context_bidir_rnn2',
                                 input_shape=(None, embedding_dim)))
 
         model.add(Dense(1, activation='linear'))
         model.add(BatchNormalization())
         model.add(AttentionLayer(attention_mask))
 
+        model.inputs.append(word_features)
         model.inputs.append(attention_mask)
         model.compile(loss='categorical_crossentropy',
                       optimizer='adam',
@@ -197,3 +194,23 @@ class AttentionLayer(Layer):
         result = tf.nn.softmax(squeezed_x, name="softmax")
         # result = tf.Print(result, [squeezed_x, result], summarize=200)
         return result
+
+
+class FeatureConcatenation(Layer):
+    def __init__(self, feature, **kwargs):
+        super(FeatureConcatenation, self).__init__(**kwargs)
+        self._feature = feature
+
+    def get_output_shape_for(self, input_shape):
+        assert len(input_shape) == 3
+
+        feature_shape = self._feature.get_shape()
+        output_shape = list(input_shape)
+        output_shape[-1] += feature_shape[-1].value
+        return tuple(output_shape)
+
+    def call(self, x, mask=None):
+        result = tf.concat(2, [x, self._feature])
+        return result
+        x = tf.Print(x, [x, self._feature], "x", summarize=20000)
+        return x
