@@ -6,16 +6,24 @@ from keras.preprocessing.sequence import pad_sequences
 
 class LinkedAnswerHints(object):
     def __init__(self, source_file, vocabulary_parent=None, use_entity_ordering=False, non_vocabulary_ratio=0.0,
-                 mask=True):
+                 mask=True, glove_embeddings=None):
         self._use_entity_ordering = use_entity_ordering
+        self._glove_embeddings = glove_embeddings
+
         self.feature_dim = 8
 
         if vocabulary_parent is None:
             self._word_index = {"$UNKNOWN$": 1, "$UNKNOWN_ENTITY$": 2}
             self._update_vocabulary = True
         else:
+            if self._glove_embeddings is None:
+                self._glove_embeddings = vocabulary_parent._glove_embeddings
+
             self._word_index = vocabulary_parent._word_index
             self._update_vocabulary = False
+
+        if self._glove_embeddings:
+            self.feature_dim = self._glove_embeddings.dim + 1
 
         with open(source_file) as f:
             lines = f.readlines()
@@ -135,8 +143,9 @@ class LinkedAnswerHints(object):
 
                 features[position] = 1.0
         else:
-            # add W2V
-            pass
+            # add embedding
+            if self._glove_embeddings:
+                features = self._glove_embeddings.get_embedding_as_list(word.lower())
 
         entity_flag = 1.0 if is_entity else 0.0
 

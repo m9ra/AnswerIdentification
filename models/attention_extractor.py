@@ -3,10 +3,9 @@ import tensorflow as tf
 from keras.callbacks import ModelCheckpoint
 from keras.engine import Input
 from keras.engine import Layer
-from keras.layers import LSTM, Dense, Bidirectional, GRU, Embedding, BatchNormalization, Lambda, initializations
+from keras.layers import LSTM, Dense, Bidirectional, GRU, Embedding, BatchNormalization
 from keras.models import Sequential
 from keras.preprocessing.sequence import pad_sequences
-from keras.regularizers import l2, activity_l2
 
 from data.html_writer import HtmlWriter
 
@@ -94,7 +93,7 @@ class AttentionExtractor(object):
         model = self.create_model()
         x_train, y_train = self.generate_data(100)
 
-        model.fit(x_train, y_train, batch_size=batch_size, nb_epoch=50)
+        model.fit(x_train, y_train, batch_size=batch_size, epochs=50)
 
     def create_embeddings(self, embedding_dim):
         index_count = 2000
@@ -117,7 +116,7 @@ class AttentionExtractor(object):
         return layer
 
     def create_model(self, train_data):
-        embedding_dim = 4
+        embedding_dim = 16
         rnn_dim = 16
 
         attention_mask = Input(shape=(None,), dtype='float32', name='attention_mask')
@@ -186,6 +185,9 @@ class AttentionLayer(Layer):
         assert len(input_shape) == 3
         return input_shape[0:2]
 
+    def compute_output_shape(self, input_shape):
+        return self.get_output_shape_for(input_shape)
+
     def call(self, x, mask=None):
         squeezed_x = tf.squeeze(x, squeeze_dims=[2])
         if self._attention_mask is not None:
@@ -209,8 +211,11 @@ class FeatureConcatenation(Layer):
         output_shape[-1] += feature_shape[-1].value
         return tuple(output_shape)
 
+    def compute_output_shape(self, input_shape):
+        return self.get_output_shape_for(input_shape)
+
     def call(self, x, mask=None):
-        result = tf.concat(2, [x, self._feature])
+        result = tf.concat([x, self._feature], 2)
         return result
         x = tf.Print(x, [x, self._feature], "x", summarize=20000)
         return x
