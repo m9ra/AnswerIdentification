@@ -11,7 +11,7 @@ class Glove(object):
             if line == "":
                 continue
 
-            #if (len(embeddings_index) > 500):
+            # if (len(embeddings_index) > 500):
             #    break
 
             values = line.split()
@@ -28,6 +28,9 @@ class Glove(object):
 
         print "Glove index load dim " + str(dim) + " and " + str(len(embeddings_index)) + " words "
 
+    def reduce_dim(self, dim):
+        self.dim = dim
+
     def get_embedding_as_list(self, word):
         embedding = self.get_embedding(word)
         return embedding.tolist()
@@ -36,4 +39,4 @@ class Glove(object):
         if not word in self._embedding_index:
             return np.array([0.0] * self.dim)
 
-        return self._embedding_index[word]
+        return self._embedding_index[word][0:self.dim]

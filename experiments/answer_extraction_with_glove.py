@@ -7,6 +7,7 @@ from models.attention_extractor import AttentionExtractor
 zip = zipfile.ZipFile('/media/sf_Shared/glove.6B.zip')
 str_table = zip.read("glove.6B.50d.txt")
 glove = Glove(str_table)
+glove.reduce_dim(10)
 
 train_data = LinkedAnswerHints("../train.qdd_ae", non_vocabulary_ratio=0.4, glove_embeddings=glove, mask=False)
 dev_data = LinkedAnswerHints("../dev.qdd_ae", vocabulary_parent=train_data)

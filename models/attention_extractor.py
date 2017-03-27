@@ -116,8 +116,8 @@ class AttentionExtractor(object):
         return layer
 
     def create_model(self, train_data):
-        embedding_dim = 16
-        rnn_dim = 16
+        embedding_dim = 8
+        rnn_dim = 8
 
         attention_mask = Input(shape=(None,), dtype='float32', name='attention_mask')
         word_features = Input(shape=(None, train_data.feature_dim), dtype='float32', name='word_features')
